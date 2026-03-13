@@ -1,0 +1,17 @@
+Restaurant Name: Royal Spice
+
+Veg Items
+Paneer Butter Masala
+Veg Biryani
+Dal Tadka
+Veg Fried Rice
+
+Non Veg Items
+Chicken Biryani
+Butter Chicken
+Chicken Tikka
+Fish Curry
+
+Desserts
+Gulab Jamun
+Ice Cream
