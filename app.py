@@ -78,8 +78,9 @@ Give a clear and friendly answer.
 """
 
     response = client.models.generate_content(
-    model="gemini-1.5-flash-latest"
-        contents=prompt
+    model="gemini-1.5-flash-latest",
+    contents=prompt
+
     )
 
     return response.text
