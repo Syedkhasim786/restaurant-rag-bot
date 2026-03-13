@@ -7,7 +7,7 @@ from pypdf import PdfReader
 from google import genai
 
 # Gemini API
-client = genai.Client(api_key=st.secrets["AIzaSyBJnyKelS8isMkB7sIVZnGujFbbeeuJzYE"])
+client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 # Embedding model
 model = SentenceTransformer("all-MiniLM-L6-v2")
