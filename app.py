@@ -86,7 +86,7 @@ Answer clearly.
     try:
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",   # ✅ FIXED MODEL
+            model="gemini-2.0-flash-lite",   # ✅ FIXED MODEL
             contents=prompt
         )
 
