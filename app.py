@@ -1,9 +1,4 @@
 import streamlit as st
-from google import genai
-
-api_key = st.secrets["GEMINI_API_KEY"]
-
-client = genai.Client(api_key=api_key)
 import os
 import faiss
 import numpy as np
@@ -11,12 +6,14 @@ from sentence_transformers import SentenceTransformer
 from pypdf import PdfReader
 from google import genai
 
+# Load Gemini API key
+api_key = st.secrets["GEMINI_API_KEY"]
 
-# Gemini API
-client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+# Create Gemini client
+client = genai.Client(api_key=api_key)
 
 # Embedding model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 # Load PDF documents
@@ -41,11 +38,12 @@ def load_documents(folder_path):
 
 
 # Build FAISS index
+@st.cache_resource
 def build_index(folder_path):
 
     docs = load_documents(folder_path)
 
-    embeddings = model.encode(docs)
+    embeddings = embedding_model.encode(docs)
 
     dimension = embeddings.shape[1]
 
@@ -59,7 +57,7 @@ def build_index(folder_path):
 # Search function
 def search(query, index, docs, k=3):
 
-    query_vector = model.encode([query])
+    query_vector = embedding_model.encode([query])
 
     distances, indices = index.search(np.array(query_vector), k)
 
@@ -68,7 +66,7 @@ def search(query, index, docs, k=3):
     return results
 
 
-# Generate answer from Gemini
+# Generate answer using Gemini
 def generate_answer(query, context):
 
     prompt = f"""
@@ -81,34 +79,22 @@ Context:
 
 Question:
 {query}
+
+Answer clearly.
 """
 
-    response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=prompt
-    )
+    try:
 
-    return response.text
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=prompt
+        )
 
-    prompt = f"""
-You are a helpful restaurant assistant.
+        return response.text
 
-Restaurant information:
-{context}
+    except Exception as e:
 
-Customer question:
-{query}
-
-Give a clear and friendly answer.
-"""
-
-    response = client.models.generate_content(
-    model="gemini-1.5-flash",
-    contents=prompt
-
-    )
-
-    return response.text
+        return f"Error from Gemini API: {str(e)}"
 
 
 # Streamlit UI
@@ -128,4 +114,5 @@ if query:
 
     answer = generate_answer(query, context)
 
-    st.write("🤖 Bot:", answer)
+    st.write(answer)
+    
