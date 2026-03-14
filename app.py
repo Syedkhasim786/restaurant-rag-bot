@@ -86,7 +86,7 @@ Answer clearly.
     try:
 
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash",   # ✅ FIXED MODEL
             contents=prompt
         )
 
@@ -115,4 +115,3 @@ if query:
     answer = generate_answer(query, context)
 
     st.write(answer)
-    
