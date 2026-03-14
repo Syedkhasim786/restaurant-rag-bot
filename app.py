@@ -6,6 +6,7 @@ from sentence_transformers import SentenceTransformer
 from pypdf import PdfReader
 from google import genai
 
+
 # Gemini API
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
@@ -68,6 +69,25 @@ def generate_answer(query, context):
     prompt = f"""
 You are a helpful restaurant assistant.
 
+Use the context below to answer the question.
+
+Context:
+{context}
+
+Question:
+{query}
+"""
+
+    response = client.models.generate_content(
+        model="gemini-1.5-flash",
+        contents=prompt
+    )
+
+    return response.text
+
+    prompt = f"""
+You are a helpful restaurant assistant.
+
 Restaurant information:
 {context}
 
@@ -78,7 +98,7 @@ Give a clear and friendly answer.
 """
 
     response = client.models.generate_content(
-    model="gemini-1.5-flash-latest",
+    model="gemini-1.5-flash",
     contents=prompt
 
     )
