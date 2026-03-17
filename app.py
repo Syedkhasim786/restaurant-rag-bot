@@ -6,72 +6,61 @@ from sentence_transformers import SentenceTransformer
 from pypdf import PdfReader
 from google import genai
 
-# Load Gemini API key
-api_key = st.secrets["GEMINI_API_KEY"]
+# --- 1. CACHED INITIALIZATION ---
+# Using @st.cache_resource ensures these only load once per session
+@st.cache_resource
+def get_gemini_client():
+    api_key = st.secrets["GEMINI_API_KEY"]
+    return genai.Client(api_key=api_key)
 
-# Create Gemini client
-client = genai.Client(api_key=api_key)
+@st.cache_resource
+def get_embedding_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
-# Embedding model
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+client = get_gemini_client()
+embedding_model = get_embedding_model()
 
-
-# Load PDF documents
+# --- 2. DOCUMENT LOADING ---
 def load_documents(folder_path):
-
     docs = []
-
+    if not os.path.exists(folder_path):
+        st.error(f"Folder '{folder_path}' not found.")
+        return []
+        
     for file in os.listdir(folder_path):
-
         if file.endswith(".pdf"):
-
             reader = PdfReader(os.path.join(folder_path, file))
-
             for page in reader.pages:
-
                 text = page.extract_text()
-
                 if text:
                     docs.append(text)
-
     return docs
 
-
-# Build FAISS index
+# --- 3. INDEXING ---
 @st.cache_resource
 def build_index(folder_path):
-
     docs = load_documents(folder_path)
-
+    if not docs:
+        return None, []
+        
     embeddings = embedding_model.encode(docs)
-
     dimension = embeddings.shape[1]
-
     index = faiss.IndexFlatL2(dimension)
-
     index.add(np.array(embeddings))
-
     return index, docs
 
-
-# Search function
+# --- 4. SEARCH & GENERATION ---
 def search(query, index, docs, k=3):
-
     query_vector = embedding_model.encode([query])
-
     distances, indices = index.search(np.array(query_vector), k)
-
     results = [docs[i] for i in indices[0]]
-
     return results
 
-
-# Generate answer using Gemini
+# @st.cache_data prevents hitting the API for the exact same question twice
+@st.cache_data
 def generate_answer(query, context):
-
     prompt = f"""
 You are a helpful restaurant assistant.
-
 Use the context below to answer the question.
 
 Context:
@@ -82,36 +71,34 @@ Question:
 
 Answer clearly.
 """
-
     try:
-
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",   # ✅ FIXED MODEL
+            model="gemini-2.0-flash-lite", 
             contents=prompt
         )
-
         return response.text
-
     except Exception as e:
-
         return f"Error from Gemini API: {str(e)}"
 
-
-# Streamlit UI
+# --- 5. STREAMLIT UI ---
 st.title("🍽 Restaurant AI Bot")
 
 folder_path = "restaurant_docs"
-
 index, docs = build_index(folder_path)
 
-query = st.text_input("Ask about the restaurant")
+if index is None:
+    st.warning("Please add PDF files to the 'restaurant_docs' folder to start.")
+else:
+    # Use a form to prevent API calls on every keystroke
+    with st.form("query_form"):
+        query = st.text_input("Ask about the restaurant (e.g., 'What is on the menu?')")
+        submit_button = st.form_submit_button("Ask Gemini")
 
-if query:
-
-    results = search(query, index, docs)
-
-    context = "\n".join(results)
-
-    answer = generate_answer(query, context)
-
-    st.write(answer)
+    if submit_button and query:
+        with st.spinner("Searching documents and generating answer..."):
+            results = search(query, index, docs)
+            context = "\n".join(results)
+            answer = generate_answer(query, context)
+            
+            st.markdown("### Answer:")
+            st.write(answer)
