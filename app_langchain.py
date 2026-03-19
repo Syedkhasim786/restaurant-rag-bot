@@ -1,0 +1,135 @@
+import streamlit as st
+import os
+
+# LangChain imports
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import FAISS
+
+# Gemini
+from google import genai
+
+# -------------------------------
+# 1. INITIALIZATION
+# -------------------------------
+@st.cache_resource
+def get_client():
+    return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+
+client = get_client()
+
+# -------------------------------
+# 2. LOAD DOCUMENTS
+# -------------------------------
+def load_documents(folder_path):
+    all_docs = []
+
+    if not os.path.exists(folder_path):
+        st.error(f"Folder '{folder_path}' not found.")
+        return []
+
+    for file in os.listdir(folder_path):
+        if file.endswith(".pdf"):
+            loader = PyPDFLoader(os.path.join(folder_path, file))
+            docs = loader.load()
+            all_docs.extend(docs)
+
+    return all_docs
+
+# -------------------------------
+# 3. SPLIT DOCUMENTS
+# -------------------------------
+def split_documents(documents):
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=400,
+        chunk_overlap=50
+    )
+    return splitter.split_documents(documents)
+
+# -------------------------------
+# 4. BUILD VECTOR STORE
+# -------------------------------
+@st.cache_resource
+def build_vectorstore(folder_path):
+    documents = load_documents(folder_path)
+
+    if not documents:
+        return None
+
+    split_docs = split_documents(documents)
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+
+    vectorstore = FAISS.from_documents(split_docs, embeddings)
+
+    return vectorstore
+
+# -------------------------------
+# 5. RETRIEVE DOCUMENTS
+# -------------------------------
+def retrieve_docs(query, vectorstore):
+    return vectorstore.similarity_search(query, k=3)
+
+# -------------------------------
+# 6. GENERATE ANSWER
+# -------------------------------
+def generate_answer(query, context):
+    prompt = f"""
+You are a restaurant assistant.
+
+Rules:
+- Answer ONLY using the context
+- If answer is not in context, say "I don't know"
+- Keep answers clear and short
+
+Context:
+{context}
+
+Question:
+{query}
+"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# -------------------------------
+# 7. STREAMLIT UI
+# -------------------------------
+st.set_page_config(page_title="Restaurant Bot (LangChain)", page_icon="🍽")
+st.title("🍽 Restaurant AI Assistant (LangChain Version)")
+
+vectorstore = build_vectorstore("restaurant_docs")
+
+if vectorstore:
+    with st.form("chat_form"):
+        user_query = st.text_input("Ask a question about the menu or services:")
+        submitted = st.form_submit_button("Ask")
+
+    if submitted and user_query:
+        with st.spinner("Searching and generating answer..."):
+            docs = retrieve_docs(user_query, vectorstore)
+
+            context = "\n".join([doc.page_content for doc in docs])
+
+            answer = generate_answer(user_query, context)
+
+            st.markdown("### Answer")
+            st.write(answer)
+
+            st.markdown("### Sources")
+            for doc in docs:
+                source = doc.metadata.get("source", "Unknown file")
+                page = doc.metadata.get("page", "N/A")
+                st.write(f"{source} - Page {page}")
+
+else:
+    st.info("Please add PDF files to the 'restaurant_docs' folder.")
