@@ -19,6 +19,10 @@ def get_client():
 
 client = get_client()
 
+# Chat history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
 # -------------------------------
 # 2. LOAD DOCUMENTS
 # -------------------------------
@@ -68,28 +72,29 @@ def build_vectorstore(folder_path):
     return vectorstore
 
 # -------------------------------
-# 5. RETRIEVE DOCUMENTS
+# 5. RETRIEVE DOCUMENTS (IMPROVED)
 # -------------------------------
 def retrieve_docs(query, vectorstore):
-    return vectorstore.similarity_search(query, k=3)
+    return vectorstore.similarity_search(query, k=4)  # more results
 
 # -------------------------------
-# 6. GENERATE ANSWER
+# 6. GENERATE ANSWER (IMPROVED)
 # -------------------------------
 def generate_answer(query, context):
     prompt = f"""
-You are a restaurant assistant.
+You are a helpful restaurant assistant.
 
-Rules:
-- Answer ONLY using the context
-- If answer is not in context, say "I don't know"
-- Keep answers clear and short
+Use the context to answer the question.
+
+If exact answer is not found, try to give a related helpful answer.
 
 Context:
 {context}
 
 Question:
 {query}
+
+Answer clearly:
 """
 
     try:
@@ -104,8 +109,20 @@ Question:
 # -------------------------------
 # 7. STREAMLIT UI
 # -------------------------------
-st.set_page_config(page_title="Restaurant Bot (LangChain)", page_icon="🍽")
+st.set_page_config(page_title="Restaurant Bot", page_icon="🍽")
 st.title("🍽 Restaurant AI Assistant (LangChain Version)")
+
+# Filters
+food_type = st.selectbox("Select food type", ["All", "Veg", "Non-Veg"])
+category = st.selectbox("Select category", ["All", "Starters", "Main Course", "Desserts", "Drinks", "Services"])
+
+# Chat history display
+st.markdown("### 💬 Chat History")
+for role, msg in st.session_state.chat_history:
+    if role == "You":
+        st.markdown(f"**🧑 You:** {msg}")
+    else:
+        st.markdown(f"**🤖 Bot:** {msg}")
 
 vectorstore = build_vectorstore("restaurant_docs")
 
@@ -115,12 +132,25 @@ if vectorstore:
         submitted = st.form_submit_button("Ask")
 
     if submitted and user_query:
+        # Apply filters to query
+        if food_type != "All":
+            user_query = f"{food_type} {user_query}"
+        if category != "All":
+            user_query = f"{category} {user_query}"
+
+        # Improve query
+        user_query = user_query + " restaurant menu services food items"
+
         with st.spinner("Searching and generating answer..."):
             docs = retrieve_docs(user_query, vectorstore)
 
             context = "\n".join([doc.page_content for doc in docs])
 
             answer = generate_answer(user_query, context)
+
+            # Save chat
+            st.session_state.chat_history.append(("You", user_query))
+            st.session_state.chat_history.append(("Bot", answer))
 
             st.markdown("### Answer")
             st.write(answer)
