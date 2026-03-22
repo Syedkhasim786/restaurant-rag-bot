@@ -162,11 +162,15 @@ if vectorstore:
         user_query = user_query + " restaurant menu services food items"
 
         with st.spinner("Searching and generating answer..."):
-            docs = retrieve_docs(user_query, vectorstore)
+    docs = retrieve_docs(user_query, vectorstore)
 
-            context = "\n".join([doc.page_content for doc in docs])
+    context = "\n".join([doc.page_content for doc in docs])
 
-            answer = generate_answer(user_query, context)
+    # 🔥 ADD DEBUG HERE
+    print("USER QUERY:", user_query)
+    print("CONTEXT:", context)
+
+    answer = generate_answer(user_query, context)
 
             # Save chat
             st.session_state.chat_history.append(("You", user_query))
