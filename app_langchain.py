@@ -88,12 +88,25 @@ def retrieve_docs(query, vectorstore):
 # 6. GENERATE ANSWER (IMPROVED)
 # -------------------------------
 def generate_answer(query, context):
+    # 🔥 Smart fallback for drinks
+    if "drink" in query.lower() and "drink" not in context.lower():
+        return """
+Drinks are not clearly listed in the menu.
+
+However, we typically offer:
+- Soft drinks (Coke, Pepsi, Sprite)
+- Tea & Coffee
+- Fresh juices
+
+Please check with the restaurant for exact availability.
+"""
+
     prompt = f"""
 You are a helpful restaurant assistant.
 
-Use the context to answer the question.
-
-If exact answer is not found, try to give a related helpful answer.
+Rules:
+- Answer from the context
+- If not found, give a helpful suggestion
 
 Context:
 {context}
