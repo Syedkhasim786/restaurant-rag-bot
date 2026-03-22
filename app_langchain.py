@@ -54,7 +54,6 @@ def split_documents(documents):
 # -------------------------------
 # 4. BUILD VECTOR STORE
 # -------------------------------
-
 def build_vectorstore(folder_path):
     documents = load_documents(folder_path)
 
@@ -72,12 +71,11 @@ def build_vectorstore(folder_path):
     return vectorstore
 
 # -------------------------------
-# 5. RETRIEVE DOCUMENTS (IMPROVED)
+# 5. RETRIEVE DOCUMENTS
 # -------------------------------
 def retrieve_docs(query, vectorstore):
     docs = vectorstore.similarity_search(query, k=6)
 
-    # 🔥 Extra boost for drinks queries
     if "drink" in query.lower():
         extra_docs = vectorstore.similarity_search("drinks beverages cool drinks", k=4)
         docs.extend(extra_docs)
@@ -85,10 +83,9 @@ def retrieve_docs(query, vectorstore):
     return docs
 
 # -------------------------------
-# 6. GENERATE ANSWER (IMPROVED)
+# 6. GENERATE ANSWER
 # -------------------------------
 def generate_answer(query, context):
-    # 🔥 Smart fallback for drinks
     if "drink" in query.lower() and "drink" not in context.lower():
         return """
 Drinks are not clearly listed in the menu.
@@ -97,8 +94,6 @@ However, we typically offer:
 - Soft drinks (Coke, Pepsi, Sprite)
 - Tea & Coffee
 - Fresh juices
-
-Please check with the restaurant for exact availability.
 """
 
     prompt = f"""
@@ -152,34 +147,25 @@ if vectorstore:
         submitted = st.form_submit_button("Ask")
 
     if submitted and user_query:
-        # Apply filters to query
+        # Apply filters
         if food_type != "All":
             user_query = f"{food_type} {user_query}"
         if category != "All":
             user_query = f"{category} {user_query}"
 
-        # Improve query
         user_query = user_query + " restaurant menu services food items"
 
-        
+        # ✅ FIXED INDENTATION HERE
+        with st.spinner("Searching and generating answer..."):
+            docs = retrieve_docs(user_query, vectorstore)
 
-    with st.spinner("Searching and generating answer..."):
-    docs = retrieve_docs(user_query, vectorstore)
+            context = "\n".join([doc.page_content for doc in docs])
 
-    context = "\n".join([doc.page_content for doc in docs])
+            # Debug
+            print("USER QUERY:", user_query)
+            print("CONTEXT:", context)
 
-    print("USER QUERY:", user_query)
-    print("CONTEXT:", context)
-
-    answer = generate_answer(user_query, context)
-
-    
-
-    # 🔥 ADD DEBUG HERE
-    print("USER QUERY:", user_query)
-    print("CONTEXT:", context)
-
-    answer = generate_answer(user_query, context)
+            answer = generate_answer(user_query, context)
 
             # Save chat
             st.session_state.chat_history.append(("You", user_query))
