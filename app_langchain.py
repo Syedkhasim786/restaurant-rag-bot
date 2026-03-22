@@ -75,7 +75,14 @@ def build_vectorstore(folder_path):
 # 5. RETRIEVE DOCUMENTS (IMPROVED)
 # -------------------------------
 def retrieve_docs(query, vectorstore):
-    return vectorstore.similarity_search(query, k=4)  # more results
+    docs = vectorstore.similarity_search(query, k=6)
+
+    # 🔥 Extra boost for drinks queries
+    if "drink" in query.lower():
+        extra_docs = vectorstore.similarity_search("drinks beverages cool drinks", k=4)
+        docs.extend(extra_docs)
+
+    return docs
 
 # -------------------------------
 # 6. GENERATE ANSWER (IMPROVED)
