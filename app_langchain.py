@@ -54,7 +54,7 @@ def split_documents(documents):
 # -------------------------------
 # 4. BUILD VECTOR STORE
 # -------------------------------
-@st.cache_resource
+
 def build_vectorstore(folder_path):
     documents = load_documents(folder_path)
 
