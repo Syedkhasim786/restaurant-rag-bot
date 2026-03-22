@@ -161,10 +161,19 @@ if vectorstore:
         # Improve query
         user_query = user_query + " restaurant menu services food items"
 
-        with st.spinner("Searching and generating answer..."):
+        
+
+    with st.spinner("Searching and generating answer..."):
     docs = retrieve_docs(user_query, vectorstore)
 
     context = "\n".join([doc.page_content for doc in docs])
+
+    print("USER QUERY:", user_query)
+    print("CONTEXT:", context)
+
+    answer = generate_answer(user_query, context)
+
+    
 
     # 🔥 ADD DEBUG HERE
     print("USER QUERY:", user_query)
